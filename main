@@ -1,0 +1,183 @@
+import os
+import zipfile
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import tensorflow as tf
+import cv2
+import keras
+from keras.models import Sequential, Model
+from keras.layers import Dense, Conv2D , MaxPool2D , Flatten , Dropout 
+from keras.preprocessing.image import ImageDataGenerator
+from keras.optimizers import Adam
+from tensorflow.keras import layers
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from sklearn.metrics import classification_report,confusion_matrix
+
+
+
+
+from google.colab import drive
+drive.mount('/content/drive')
+
+
+
+
+local_zip = '/content/drive/MyDrive/images.zip'
+zip_ref = zipfile.ZipFile(local_zip,'r')
+zip_ref.extractall('eikones')
+zip_ref.close()
+
+
+
+
+base_dir = '/content/eikones'
+train_dir = os.path.join(base_dir,'train_another')
+test_dir = os.path.join(base_dir,'test_another')
+val_dir = os.path.join(base_dir,'validation_another')
+
+
+
+
+train_datagen = ImageDataGenerator() 
+
+test_datagen = ImageDataGenerator()
+
+train_ds = train_datagen.flow_from_directory(train_dir,
+                                             batch_size=32,
+                                             class_mode='categorical',
+                                             color_mode='rgb',
+                                             target_size=(128,128))
+validation_ds = train_datagen.flow_from_directory(val_dir,
+                                                  batch_size=32,
+                                                  class_mode='categorical',
+                                                  color_mode='rgb',
+                                                  target_size=(128,128))
+test_ds = test_datagen.flow_from_directory(test_dir,
+                                                  batch_size=32,
+                                                  class_mode='categorical',
+                                                  color_mode='rgb',
+                                                  target_size=(128,128))
+
+
+# 
+# 
+# ``` 
+# #ANN
+# 
+# model = tf.keras.Sequential([
+#   layers.experimental.preprocessing.Rescaling(1./127.5, offset=-1),
+#   #layers.experimental.preprocessing.Rescaling(1./255),
+#   layers.Flatten(input_shape=(128,128,3)),
+#   layers.BatchNormalization(),
+#   layers.Dense(256, activation= 'relu'),
+#   layers.BatchNormalization(),
+#   layers.Dense(128, activation= 'relu'),
+#   layers.BatchNormalization(),
+#   layers.Dense(num_classes,activation='sigmoid')
+# ])
+# 
+# ```
+# 
+# 
+
+# 
+# 
+# ```
+# 
+# # CNN
+# 
+# model = tf.keras.Sequential([
+#   layers.experimental.preprocessing.Rescaling(1./255),
+#   #layers.experimental.preprocessing.Rescaling(1./127.5, offset=-1),
+#   layers.Conv2D(64, 3, activation= 'relu'),
+#   layers.MaxPool2D(),
+#   layers.BatchNormalization(),
+#   layers.Conv2D(32, 3, activation= 'relu'),
+#   layers.MaxPool2D(),
+#   layers.BatchNormalization(),
+#   layers.Flatten(),
+#   layers.Dense(128, activation= 'relu'),
+#   layers.BatchNormalization(),
+#   layers.Dense(num_classes,activation='sigmoid')
+# ])
+# ```
+# 
+# 
+
+
+
+num_classes = 2
+from tensorflow.keras.layers import BatchNormalization
+
+model = tf.keras.Sequential([
+  layers.experimental.preprocessing.Rescaling(1./255),
+  layers.Conv2D(64, 3, activation= 'relu'),
+  layers.MaxPool2D(),
+  layers.Conv2D(32, 3, activation= 'relu'),
+  layers.MaxPool2D(),
+  layers.Flatten(),
+  layers.Dense(128),
+  layers.Dense(num_classes,activation='sigmoid')
+])
+
+
+
+
+from keras import metrics
+model.compile(
+  optimizer='adam',
+  loss='binary_crossentropy',
+  metrics=['accuracy',metrics.Recall(),metrics.Precision()])
+
+
+
+
+history = model.fit(train_ds,
+                    validation_data=validation_ds,
+                    epochs=10,
+                    )
+
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train','test'], loc='upper left')
+plt.show()
+
+model.summary()
+
+model.evaluate(test_ds)
+
+
+acc = history.history['accuracy']
+val_acc = history.history['val_accuracy']
+
+loss = history.history['loss']
+val_loss = history.history['val_loss']
+
+fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(10,8), sharex=True)
+
+x_plot = np.arange(1, 11)
+
+ax[0].plot(x_plot, acc, '+-', label='training')
+ax[0].plot(x_plot, val_acc, '+-', label='validation')
+ax[0].legend()
+ax[0].set_ylabel('accuracy')
+ax[0].set_ylim(0.5, 1)
+ax[0].grid(ls='--', c='C7')
+ax[0].set_title('accuracy')
+
+ax[1].plot(x_plot, loss, '+-', label='training')
+ax[1].plot(x_plot, val_loss, '+-', label='validation')
+ax[1].legend()
+ax[1].set_ylabel('cross entropy')
+ax[1].set_ylim(0, 1)
+ax[1].grid(ls='--', c='C7')
+ax[1].set_title('loss')
+ax[1].set_xlabel('epoch')
+
+plt.show()
+
